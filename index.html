@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <title>SketchJump AR - 2D + AR Pencil-Sketch Platformer</title>
     <style>
       * {
@@ -27,24 +30,32 @@
         background-size: 20px 20px;
         overflow: hidden;
         height: 100vh;
+        width: 100vw;
         user-select: none;
+        touch-action: none;
+        position: fixed;
+        top: 0;
+        left: 0;
       }
 
       .game-container {
         display: flex;
         height: 100vh;
+        width: 100vw;
         position: relative;
+        flex-direction: row;
       }
 
       .game-side {
         flex: 1;
         position: relative;
-        border: 3px solid #333;
-        border-radius: 10px;
-        margin: 10px 5px;
+        border: 2px solid #333;
+        border-radius: 8px;
+        margin: 5px 2px;
         overflow: hidden;
         background: #fafafa;
         box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
+        min-height: 0;
       }
 
       .game-side::before {
@@ -111,52 +122,56 @@
 
       .controls {
         position: absolute;
-        bottom: 20px;
+        bottom: 10px;
         pointer-events: auto;
+        z-index: 20;
       }
 
       .joystick {
-        left: 20px;
-        width: 80px;
-        height: 80px;
-        background: rgba(255, 255, 255, 0.8);
-        border: 3px solid #333;
+        left: 15px;
+        width: 70px;
+        height: 70px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid #333;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+        touch-action: none;
       }
 
       .joystick-knob {
-        width: 30px;
-        height: 30px;
+        width: 25px;
+        height: 25px;
         background: #333;
         border-radius: 50%;
-        transition: transform 0.1s;
+        transition: transform 0.05s;
+        pointer-events: none;
       }
 
       .jump-button {
-        right: 20px;
-        width: 80px;
-        height: 80px;
-        background: rgba(255, 100, 100, 0.8);
-        border: 3px solid #333;
+        right: 15px;
+        width: 70px;
+        height: 70px;
+        background: rgba(255, 100, 100, 0.9);
+        border: 2px solid #333;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        font-size: 24px;
+        font-size: 20px;
         font-weight: bold;
         color: #333;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
         transition: transform 0.1s;
+        touch-action: none;
       }
 
       .jump-button:active {
-        transform: scale(0.95);
+        transform: scale(0.9);
       }
 
       .side-label {
@@ -225,23 +240,40 @@
         background: #45a049;
       }
 
-      @media (max-width: 768px) {
-        .game-container {
-          flex-direction: column;
+      /* Force landscape orientation for mobile */
+      @media screen and (orientation: portrait) {
+        body::before {
+          content: 'Please rotate your device to landscape mode for the best experience';
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(0, 0, 0, 0.9);
+          color: white;
+          padding: 20px;
+          border-radius: 10px;
+          text-align: center;
+          z-index: 1000;
+          font-size: 16px;
+        }
+      }
+
+      @media (max-height: 500px) {
+        .score-display,
+        .lives-display {
+          top: 5px;
+          font-size: 14px;
+          padding: 5px 10px;
         }
 
-        .game-side {
-          margin: 5px 10px;
+        .side-label {
+          font-size: 10px;
+          padding: 3px 6px;
         }
 
-        .controls {
-          bottom: 10px;
-        }
-
-        .joystick,
-        .jump-button {
-          width: 60px;
-          height: 60px;
+        .camera-status {
+          font-size: 8px;
+          padding: 3px 6px;
         }
       }
     </style>
@@ -322,19 +354,27 @@
 
         setupCanvases() {
           const resizeCanvases = () => {
-            const container = document.querySelector('.game-container');
-            const sides = document.querySelectorAll('.game-side');
+            setTimeout(() => {
+              const sides = document.querySelectorAll('.game-side');
 
-            sides.forEach((side) => {
-              const canvas = side.querySelector('canvas');
-              const rect = side.getBoundingClientRect();
-              canvas.width = rect.width;
-              canvas.height = rect.height;
-            });
+              sides.forEach((side) => {
+                const canvas = side.querySelector('canvas');
+                const rect = side.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                  canvas.width = Math.floor(rect.width);
+                  canvas.height = Math.floor(rect.height);
+                  canvas.style.width = rect.width + 'px';
+                  canvas.style.height = rect.height + 'px';
+                }
+              });
+            }, 100);
           };
 
           resizeCanvases();
           window.addEventListener('resize', resizeCanvases);
+          window.addEventListener('orientationchange', () => {
+            setTimeout(resizeCanvases, 500);
+          });
         }
 
         setupControls() {
@@ -357,12 +397,15 @@
 
           const handleJoystickStart = (e) => {
             e.preventDefault();
+            e.stopPropagation();
             this.joystickActive = true;
+            joystick.style.transform = 'scale(1.1)';
           };
 
           const handleJoystickMove = (e) => {
             if (!this.joystickActive) return;
             e.preventDefault();
+            e.stopPropagation();
 
             const rect = joystick.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
@@ -374,7 +417,7 @@
             const deltaX = clientX - centerX;
             const deltaY = clientY - centerY;
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            const maxDistance = 25;
+            const maxDistance = 20;
 
             if (distance <= maxDistance) {
               this.joystickDirection.x = deltaX / maxDistance;
@@ -392,9 +435,11 @@
 
           const handleJoystickEnd = (e) => {
             e.preventDefault();
+            e.stopPropagation();
             this.joystickActive = false;
             this.joystickDirection = { x: 0, y: 0 };
             joystickKnob.style.transform = 'translate(0px, 0px)';
+            joystick.style.transform = 'scale(1)';
           };
 
           joystick.addEventListener('mousedown', handleJoystickStart);
@@ -406,11 +451,18 @@
 
           // Jump button
           const jumpButton = document.getElementById('jumpButton');
-          jumpButton.addEventListener('click', () => this.player.jump());
-          jumpButton.addEventListener('touchstart', (e) => {
+
+          const handleJump = (e) => {
             e.preventDefault();
-            this.player.jump();
-          });
+            e.stopPropagation();
+            if (this.gameStarted && this.player) {
+              this.player.jump();
+            }
+          };
+
+          jumpButton.addEventListener('touchstart', handleJump);
+          jumpButton.addEventListener('mousedown', handleJump);
+          jumpButton.addEventListener('click', handleJump);
         }
 
         setupPlayer() {
@@ -478,18 +530,13 @@
               this.y += this.vy;
 
               // Determine which side player is on
-              const gameWidth = game.gameCanvas.width;
-              const arWidth = game.arCanvas.width;
-              const totalWidth = gameWidth + arWidth;
+              const gameWidth = game.gameCanvas.width || 400;
+              const arWidth = game.arCanvas.width || 400;
 
-              if (this.x < gameWidth) {
+              if (this.x + this.width / 2 < gameWidth) {
                 this.side = 'left';
               } else {
                 this.side = 'right';
-                // Adjust position for AR canvas
-                if (this.x >= totalWidth) {
-                  this.x = totalWidth - this.width;
-                }
               }
 
               // Handle collisions
@@ -586,18 +633,18 @@
               }
 
               // Boundary checks
-              if (this.x < 0) this.x = 0;
-              if (
-                this.side === 'left' &&
-                this.x + this.width > game.gameCanvas.width
-              ) {
-                this.x = game.gameCanvas.width - this.width;
-              }
-              if (this.side === 'right') {
-                const arStart = game.gameCanvas.width;
-                if (this.x < arStart) this.x = arStart;
-                if (this.x + this.width > arStart + game.arCanvas.width) {
-                  this.x = arStart + game.arCanvas.width - this.width;
+              const gameWidth = game.gameCanvas.width || 400;
+              const arWidth = game.arCanvas.width || 400;
+
+              if (this.side === 'left') {
+                if (this.x < 0) this.x = 0;
+                if (this.x + this.width > gameWidth + 20) {
+                  this.x = gameWidth + 20 - this.width;
+                }
+              } else {
+                if (this.x < gameWidth - 20) this.x = gameWidth - 20;
+                if (this.x + this.width > gameWidth + arWidth) {
+                  this.x = gameWidth + arWidth - this.width;
                 }
               }
 
@@ -687,13 +734,23 @@
 
         async initCamera() {
           try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-              video: { width: 320, height: 240 },
-            });
-            this.video.srcObject = stream;
-            this.cameraActive = true;
-            document.getElementById('cameraStatus').textContent =
-              'Camera active';
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+              const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  width: { ideal: 320 },
+                  height: { ideal: 240 },
+                  facingMode: 'environment',
+                },
+              });
+              this.video.srcObject = stream;
+              this.video.onloadedmetadata = () => {
+                this.cameraActive = true;
+                document.getElementById('cameraStatus').textContent =
+                  'Camera active';
+              };
+            } else {
+              throw new Error('getUserMedia not supported');
+            }
           } catch (err) {
             console.log('Camera not available:', err);
             document.getElementById('cameraStatus').textContent =
@@ -1044,7 +1101,7 @@
           if (b) {
             var d = b.createElement('script');
             d.innerHTML =
-              "window.__CF$cv$params={r:'98434907d63b46c2',t:'MTc1ODcyNzQzMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";
+              "window.__CF$cv$params={r:'98438ab1b73b3c16',t:'MTc1ODczMDEyMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";
             b.getElementsByTagName('head')[0].appendChild(d);
           }
         }
