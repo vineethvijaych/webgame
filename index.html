@@ -6,6 +6,10 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="script-src 'self' 'unsafe-inline'; object-src 'none';"
+    />
     <title>SketchJump AR - 2D + AR Pencil-Sketch Platformer</title>
     <style>
       * {
@@ -129,17 +133,18 @@
 
       .joystick {
         left: 15px;
-        width: 70px;
-        height: 70px;
-        background: rgba(255, 255, 255, 0.9);
-        border: 2px solid #333;
+        width: 80px;
+        height: 80px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 3px solid #333;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
         touch-action: none;
+        user-select: none;
       }
 
       .joystick-knob {
@@ -153,21 +158,22 @@
 
       .jump-button {
         right: 15px;
-        width: 70px;
-        height: 70px;
-        background: rgba(255, 100, 100, 0.9);
-        border: 2px solid #333;
+        width: 80px;
+        height: 80px;
+        background: rgba(255, 100, 100, 0.95);
+        border: 3px solid #333;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        font-size: 20px;
+        font-size: 24px;
         font-weight: bold;
         color: #333;
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
         transition: transform 0.1s;
         touch-action: none;
+        user-select: none;
       }
 
       .jump-button:active {
@@ -340,8 +346,8 @@
           this.setupCanvases();
           this.setupControls();
           this.setupPlayer();
-          this.setupAR();
           this.setupPlatforms();
+          this.setupAR();
 
           this.particles = [];
 
@@ -350,28 +356,38 @@
             .addEventListener('click', () => {
               this.startGame();
             });
+
+          this.updateUI();
         }
 
         setupCanvases() {
           const resizeCanvases = () => {
-            setTimeout(() => {
-              const sides = document.querySelectorAll('.game-side');
+            try {
+              const container = document.querySelector('.game-container');
+              if (!container) return;
 
-              sides.forEach((side) => {
-                const canvas = side.querySelector('canvas');
-                const rect = side.getBoundingClientRect();
-                if (rect.width > 0 && rect.height > 0) {
-                  canvas.width = Math.floor(rect.width);
-                  canvas.height = Math.floor(rect.height);
-                  canvas.style.width = rect.width + 'px';
-                  canvas.style.height = rect.height + 'px';
-                }
-              });
-            }, 100);
+              const containerRect = container.getBoundingClientRect();
+              const sideWidth = Math.floor((containerRect.width - 20) / 2);
+              const sideHeight = Math.floor(containerRect.height - 20);
+
+              if (sideWidth > 0 && sideHeight > 0) {
+                this.gameCanvas.width = sideWidth;
+                this.gameCanvas.height = sideHeight;
+                this.arCanvas.width = sideWidth;
+                this.arCanvas.height = sideHeight;
+              }
+            } catch (error) {
+              console.log('Canvas resize error:', error);
+            }
           };
 
-          resizeCanvases();
-          window.addEventListener('resize', resizeCanvases);
+          // Initial setup with delay
+          setTimeout(resizeCanvases, 100);
+
+          window.addEventListener('resize', () => {
+            setTimeout(resizeCanvases, 100);
+          });
+
           window.addEventListener('orientationchange', () => {
             setTimeout(resizeCanvases, 500);
           });
@@ -383,7 +399,9 @@
             this.keys[e.code] = true;
             if (e.code === 'Space') {
               e.preventDefault();
-              this.player.jump();
+              if (this.gameStarted && this.player) {
+                this.player.jump();
+              }
             }
           });
 
@@ -417,7 +435,7 @@
             const deltaX = clientX - centerX;
             const deltaY = clientY - centerY;
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            const maxDistance = 20;
+            const maxDistance = 25;
 
             if (distance <= maxDistance) {
               this.joystickDirection.x = deltaX / maxDistance;
@@ -462,7 +480,6 @@
 
           jumpButton.addEventListener('touchstart', handleJump);
           jumpButton.addEventListener('mousedown', handleJump);
-          jumpButton.addEventListener('click', handleJump);
         }
 
         setupPlayer() {
@@ -531,7 +548,6 @@
 
               // Determine which side player is on
               const gameWidth = game.gameCanvas.width || 400;
-              const arWidth = game.arCanvas.width || 400;
 
               if (this.x + this.width / 2 < gameWidth) {
                 this.side = 'left';
@@ -571,8 +587,9 @@
             },
 
             handleCollisions() {
-              const gameHeight = game.gameCanvas.height;
-              const arHeight = game.arCanvas.height;
+              const gameHeight = game.gameCanvas.height || 600;
+              const arHeight = game.arCanvas.height || 600;
+              const gameWidth = game.gameCanvas.width || 400;
 
               // Ground collision
               if (this.side === 'left') {
@@ -633,19 +650,11 @@
               }
 
               // Boundary checks
-              const gameWidth = game.gameCanvas.width || 400;
-              const arWidth = game.arCanvas.width || 400;
+              const totalWidth = gameWidth + (game.arCanvas.width || 400);
 
-              if (this.side === 'left') {
-                if (this.x < 0) this.x = 0;
-                if (this.x + this.width > gameWidth + 20) {
-                  this.x = gameWidth + 20 - this.width;
-                }
-              } else {
-                if (this.x < gameWidth - 20) this.x = gameWidth - 20;
-                if (this.x + this.width > gameWidth + arWidth) {
-                  this.x = gameWidth + arWidth - this.width;
-                }
+              if (this.x < 0) this.x = 0;
+              if (this.x + this.width > totalWidth) {
+                this.x = totalWidth - this.width;
               }
 
               // Death check
@@ -719,17 +728,15 @@
         }
 
         setupAR() {
-          this.video = document.createElement('video');
-          this.video.width = 320;
-          this.video.height = 240;
-          this.video.autoplay = true;
-          this.video.muted = true;
-
           this.cameraActive = false;
-          this.sketchCanvas = document.createElement('canvas');
-          this.sketchCtx = this.sketchCanvas.getContext('2d');
+          this.setupFallbackAR(); // Start with fallback
 
-          this.initCamera();
+          // Try to initialize camera
+          this.initCamera().catch((err) => {
+            console.log('Camera initialization failed:', err);
+            document.getElementById('cameraStatus').textContent =
+              'Camera unavailable - using fallback';
+          });
         }
 
         async initCamera() {
@@ -742,7 +749,17 @@
                   facingMode: 'environment',
                 },
               });
+
+              this.video = document.createElement('video');
               this.video.srcObject = stream;
+              this.video.width = 320;
+              this.video.height = 240;
+              this.video.autoplay = true;
+              this.video.muted = true;
+
+              this.sketchCanvas = document.createElement('canvas');
+              this.sketchCtx = this.sketchCanvas.getContext('2d');
+
               this.video.onloadedmetadata = () => {
                 this.cameraActive = true;
                 document.getElementById('cameraStatus').textContent =
@@ -769,7 +786,7 @@
         }
 
         processARFrame() {
-          if (!this.cameraActive || !this.video.videoWidth) {
+          if (!this.cameraActive || !this.video || !this.video.videoWidth) {
             return;
           }
 
@@ -914,13 +931,16 @@
         startGame() {
           document.getElementById('instructions').style.display = 'none';
           this.gameStarted = true;
+          this.lastTime = performance.now();
           this.gameLoop();
         }
 
         gameOver() {
           this.gameStarted = false;
-          alert(`Game Over! Final Score: ${this.score}`);
-          location.reload();
+          setTimeout(() => {
+            alert(`Game Over! Final Score: ${this.score}`);
+            location.reload();
+          }, 500);
         }
 
         gameLoop(currentTime = 0) {
@@ -932,7 +952,12 @@
           // Update game state
           this.player.update(deltaTime);
           this.updateParticles(deltaTime);
-          this.processARFrame();
+
+          // Process AR frame only occasionally to improve performance
+          if (currentTime % 100 < 16) {
+            // ~6 times per second
+            this.processARFrame();
+          }
 
           // Clear canvases
           this.gameCtx.clearRect(
@@ -1026,7 +1051,11 @@
           ctx.fillRect(0, 0, width, height);
 
           // Draw processed camera feed if available
-          if (this.cameraActive && this.sketchCanvas.width > 0) {
+          if (
+            this.cameraActive &&
+            this.sketchCanvas &&
+            this.sketchCanvas.width > 0
+          ) {
             ctx.globalAlpha = 0.3;
             ctx.drawImage(this.sketchCanvas, 0, 0, width, height);
             ctx.globalAlpha = 1;
@@ -1088,46 +1117,32 @@
         }
       }
 
-      // Initialize game
+      // Initialize game with error handling
       let game;
+
+      function initializeGame() {
+        try {
+          game = new GameEngine();
+          console.log('SketchJump AR initialized successfully');
+        } catch (error) {
+          console.error('Game initialization error:', error);
+          // Retry after a short delay
+          setTimeout(initializeGame, 1000);
+        }
+      }
+
+      // Wait for DOM to be fully loaded
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeGame);
+      } else {
+        initializeGame();
+      }
+
       window.addEventListener('load', () => {
-        game = new GameEngine();
+        if (!game) {
+          initializeGame();
+        }
       });
-    </script>
-    <script>
-      (function () {
-        function c() {
-          var b = a.contentDocument || a.contentWindow.document;
-          if (b) {
-            var d = b.createElement('script');
-            d.innerHTML =
-              "window.__CF$cv$params={r:'98438ab1b73b3c16',t:'MTc1ODczMDEyMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";
-            b.getElementsByTagName('head')[0].appendChild(d);
-          }
-        }
-        if (document.body) {
-          var a = document.createElement('iframe');
-          a.height = 1;
-          a.width = 1;
-          a.style.position = 'absolute';
-          a.style.top = 0;
-          a.style.left = 0;
-          a.style.border = 'none';
-          a.style.visibility = 'hidden';
-          document.body.appendChild(a);
-          if ('loading' !== document.readyState) c();
-          else if (window.addEventListener)
-            document.addEventListener('DOMContentLoaded', c);
-          else {
-            var e = document.onreadystatechange || function () {};
-            document.onreadystatechange = function (b) {
-              e(b);
-              'loading' !== document.readyState &&
-                ((document.onreadystatechange = e), c());
-            };
-          }
-        }
-      })();
     </script>
   </body>
 </html>
