@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SketchJump AR - Pencil Sketch Platformer</title>
+    <title>SketchJump AR - 2D + AR Pencil-Sketch Platformer</title>
     <style>
       * {
         margin: 0;
@@ -13,8 +13,18 @@
 
       body {
         font-family: 'Courier New', monospace;
-        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><pattern id="paper" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="%23f8f8f8"/><circle cx="5" cy="5" r="0.5" fill="%23e8e8e8"/><circle cx="15" cy="15" r="0.3" fill="%23e8e8e8"/></pattern></defs><rect width="100" height="100" fill="url(%23paper)"/></svg>')
-          repeat;
+        background: linear-gradient(45deg, #f5f5dc, #e8e8e8);
+        background-image: radial-gradient(
+            circle at 25% 25%,
+            rgba(0, 0, 0, 0.02) 1px,
+            transparent 1px
+          ),
+          radial-gradient(
+            circle at 75% 75%,
+            rgba(0, 0, 0, 0.02) 1px,
+            transparent 1px
+          );
+        background-size: 20px 20px;
         overflow: hidden;
         height: 100vh;
         user-select: none;
@@ -24,137 +34,195 @@
         display: flex;
         height: 100vh;
         position: relative;
-        border: 3px solid #333;
-        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
       }
 
       .game-side {
         flex: 1;
         position: relative;
-        border: 2px solid #666;
-        background: linear-gradient(145deg, #fafafa, #f0f0f0);
+        border: 3px solid #333;
+        border-radius: 10px;
+        margin: 10px 5px;
+        overflow: hidden;
+        background: #fafafa;
+        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
       }
 
-      .game-canvas,
-      .ar-canvas {
-        width: 100%;
-        height: 100%;
-        display: block;
-        filter: contrast(1.2) brightness(0.95);
-      }
-
-      .ar-video {
+      .game-side::before {
+        content: '';
         position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        z-index: -1;
+        right: 0;
+        bottom: 0;
+        background-image: linear-gradient(
+            90deg,
+            rgba(0, 0, 0, 0.02) 1px,
+            transparent 1px
+          ),
+          linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+        background-size: 30px 30px;
+        pointer-events: none;
+        z-index: 1;
       }
 
-      .hud {
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        position: relative;
+        z-index: 2;
+      }
+
+      .ui-overlay {
         position: absolute;
-        top: 10px;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      .score-display {
+        position: absolute;
+        top: 20px;
         left: 50%;
         transform: translateX(-50%);
         background: rgba(255, 255, 255, 0.9);
         padding: 10px 20px;
         border: 2px solid #333;
-        border-radius: 10px;
-        font-weight: bold;
+        border-radius: 20px;
         font-size: 18px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-        z-index: 1000;
+        font-weight: bold;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .lives-display {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 10px 15px;
+        border: 2px solid #333;
+        border-radius: 15px;
+        font-size: 16px;
+        font-weight: bold;
       }
 
       .controls {
         position: absolute;
         bottom: 20px;
-        left: 0;
-        right: 0;
-        display: flex;
-        justify-content: space-between;
-        padding: 0 20px;
-        z-index: 1000;
-        pointer-events: none;
+        pointer-events: auto;
       }
 
-      .joystick,
-      .jump-btn {
+      .joystick {
+        left: 20px;
         width: 80px;
         height: 80px;
+        background: rgba(255, 255, 255, 0.8);
         border: 3px solid #333;
         border-radius: 50%;
-        background: radial-gradient(circle, #fff 30%, #ddd 100%);
         display: flex;
         align-items: center;
         justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .joystick-knob {
+        width: 30px;
+        height: 30px;
+        background: #333;
+        border-radius: 50%;
+        transition: transform 0.1s;
+      }
+
+      .jump-button {
+        right: 20px;
+        width: 80px;
+        height: 80px;
+        background: rgba(255, 100, 100, 0.8);
+        border: 3px solid #333;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
         font-size: 24px;
         font-weight: bold;
-        cursor: pointer;
-        pointer-events: all;
-        user-select: none;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-        transition: transform 0.1s ease;
+        color: #333;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        transition: transform 0.1s;
       }
 
-      .joystick:active,
-      .jump-btn:active {
-        transform: scale(0.9);
-      }
-
-      .joystick::after {
-        content: '🕹️';
-      }
-
-      .jump-btn::after {
-        content: '⬆️';
-      }
-
-      .instructions {
-        position: absolute;
-        top: 70px;
-        left: 10px;
-        background: rgba(255, 255, 255, 0.9);
-        padding: 10px;
-        border: 1px solid #333;
-        border-radius: 5px;
-        font-size: 12px;
-        max-width: 200px;
-        z-index: 1000;
+      .jump-button:active {
+        transform: scale(0.95);
       }
 
       .side-label {
         position: absolute;
-        top: 50%;
+        top: 10px;
         left: 10px;
-        transform: translateY(-50%);
         background: rgba(0, 0, 0, 0.8);
         color: white;
         padding: 5px 10px;
-        border-radius: 15px;
-        font-size: 14px;
+        border-radius: 10px;
+        font-size: 12px;
         font-weight: bold;
-        z-index: 500;
       }
 
-      .transition-zone {
+      .camera-status {
         position: absolute;
-        top: 0;
+        bottom: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 10px;
+        font-size: 10px;
+      }
+
+      .instructions {
+        position: absolute;
+        top: 50%;
         left: 50%;
-        width: 4px;
-        height: 100%;
-        background: linear-gradient(
-          to bottom,
-          #ff6b6b,
-          #4ecdc4,
-          #45b7d1,
-          #96ceb4
-        );
-        transform: translateX(-50%);
+        transform: translate(-50%, -50%);
+        background: rgba(255, 255, 255, 0.95);
+        padding: 20px;
+        border: 3px solid #333;
+        border-radius: 15px;
+        text-align: center;
+        max-width: 300px;
         z-index: 100;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+      }
+
+      .instructions h3 {
+        margin-bottom: 10px;
+        color: #333;
+      }
+
+      .instructions p {
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #666;
+      }
+
+      .start-button {
+        background: #4caf50;
+        color: white;
+        border: 2px solid #333;
+        padding: 10px 20px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        margin-top: 10px;
+        transition: background 0.2s;
+      }
+
+      .start-button:hover {
+        background: #45a049;
       }
 
       @media (max-width: 768px) {
@@ -162,120 +230,190 @@
           flex-direction: column;
         }
 
-        .transition-zone {
-          left: 0;
-          top: 50%;
-          width: 100%;
-          height: 4px;
-          transform: translateY(-50%);
+        .game-side {
+          margin: 5px 10px;
         }
 
         .controls {
           bottom: 10px;
-          padding: 0 10px;
         }
 
         .joystick,
-        .jump-btn {
+        .jump-button {
           width: 60px;
           height: 60px;
-          font-size: 20px;
         }
-      }
-
-      .particle {
-        position: absolute;
-        pointer-events: none;
-        z-index: 50;
-      }
-
-      .loading {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(255, 255, 255, 0.95);
-        padding: 20px;
-        border: 2px solid #333;
-        border-radius: 10px;
-        text-align: center;
-        font-weight: bold;
-        z-index: 2000;
       }
     </style>
   </head>
   <body>
     <div class="game-container">
-      <!-- Loading Screen -->
-      <div class="loading" id="loading">
-        <div>🎨 Initializing SketchJump AR...</div>
-        <div style="margin-top: 10px; font-size: 12px">
-          Preparing pencil-sketch world...
+      <!-- 2D Game Side -->
+      <div class="game-side">
+        <div class="side-label">2D World</div>
+        <canvas id="gameCanvas"></canvas>
+      </div>
+
+      <!-- AR Camera Side -->
+      <div class="game-side">
+        <div class="side-label">AR World</div>
+        <canvas id="arCanvas"></canvas>
+        <div class="camera-status" id="cameraStatus">
+          Initializing camera...
         </div>
       </div>
 
-      <!-- HUD -->
-      <div class="hud">
-        <span>Score: <span id="score">0</span></span> |
-        <span>Lives: <span id="lives">♥♥♥</span></span> |
-        <span>Side: <span id="current-side">2D World</span></span>
+      <!-- UI Overlay -->
+      <div class="ui-overlay">
+        <div class="score-display">Score: <span id="score">0</span></div>
+        <div class="lives-display">❤️ <span id="lives">3</span></div>
+
+        <!-- Touch Controls -->
+        <div class="controls joystick" id="joystick">
+          <div class="joystick-knob" id="joystickKnob"></div>
+        </div>
+        <div class="controls jump-button" id="jumpButton">↑</div>
       </div>
 
-      <!-- Instructions -->
-      <div class="instructions">
-        <strong>Controls:</strong><br />
-        • WASD/Arrow Keys + Space<br />
-        • Touch joystick & jump button<br />
-        • Cross the center line to switch between 2D and AR worlds!<br />
-        • Jump on real objects in AR mode for bonus points!
-      </div>
-
-      <!-- Left Side: 2D Game World -->
-      <div class="game-side">
-        <div class="side-label">2D SKETCH WORLD</div>
-        <canvas class="game-canvas" id="gameCanvas"></canvas>
-      </div>
-
-      <!-- Transition Zone -->
-      <div class="transition-zone"></div>
-
-      <!-- Right Side: AR Camera World -->
-      <div class="game-side">
-        <div class="side-label">AR SKETCH WORLD</div>
-        <video class="ar-video" id="arVideo" autoplay muted playsinline></video>
-        <canvas class="ar-canvas" id="arCanvas"></canvas>
-      </div>
-
-      <!-- Mobile Controls -->
-      <div class="controls">
-        <div class="joystick" id="joystick"></div>
-        <div class="jump-btn" id="jumpBtn"></div>
+      <!-- Instructions Modal -->
+      <div class="instructions" id="instructions">
+        <h3>🎮 SketchJump AR</h3>
+        <p>• Move with WASD or touch joystick</p>
+        <p>• Jump with SPACE or jump button</p>
+        <p>• Cross between 2D and AR worlds</p>
+        <p>• Stand on real objects in AR side</p>
+        <p>• Earn points for successful jumps!</p>
+        <button class="start-button" id="startButton">Start Game</button>
       </div>
     </div>
 
     <script>
-      class SketchJumpAR {
+      // Game Engine Core
+      class GameEngine {
         constructor() {
           this.gameCanvas = document.getElementById('gameCanvas');
           this.arCanvas = document.getElementById('arCanvas');
-          this.arVideo = document.getElementById('arVideo');
           this.gameCtx = this.gameCanvas.getContext('2d');
           this.arCtx = this.arCanvas.getContext('2d');
 
           this.score = 0;
           this.lives = 3;
-          this.currentSide = 'left'; // 'left' or 'right'
+          this.gameStarted = false;
+          this.lastTime = 0;
 
           this.keys = {};
-          this.touches = {};
+          this.joystickActive = false;
+          this.joystickDirection = { x: 0, y: 0 };
 
-          // Game state
-          this.gameState = 'loading';
-          this.platforms = [];
-          this.arPlatforms = [];
+          this.setupCanvases();
+          this.setupControls();
+          this.setupPlayer();
+          this.setupAR();
+          this.setupPlatforms();
+
           this.particles = [];
 
-          // Player object
+          document
+            .getElementById('startButton')
+            .addEventListener('click', () => {
+              this.startGame();
+            });
+        }
+
+        setupCanvases() {
+          const resizeCanvases = () => {
+            const container = document.querySelector('.game-container');
+            const sides = document.querySelectorAll('.game-side');
+
+            sides.forEach((side) => {
+              const canvas = side.querySelector('canvas');
+              const rect = side.getBoundingClientRect();
+              canvas.width = rect.width;
+              canvas.height = rect.height;
+            });
+          };
+
+          resizeCanvases();
+          window.addEventListener('resize', resizeCanvases);
+        }
+
+        setupControls() {
+          // Keyboard controls
+          document.addEventListener('keydown', (e) => {
+            this.keys[e.code] = true;
+            if (e.code === 'Space') {
+              e.preventDefault();
+              this.player.jump();
+            }
+          });
+
+          document.addEventListener('keyup', (e) => {
+            this.keys[e.code] = false;
+          });
+
+          // Touch joystick
+          const joystick = document.getElementById('joystick');
+          const joystickKnob = document.getElementById('joystickKnob');
+
+          const handleJoystickStart = (e) => {
+            e.preventDefault();
+            this.joystickActive = true;
+          };
+
+          const handleJoystickMove = (e) => {
+            if (!this.joystickActive) return;
+            e.preventDefault();
+
+            const rect = joystick.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const deltaX = clientX - centerX;
+            const deltaY = clientY - centerY;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const maxDistance = 25;
+
+            if (distance <= maxDistance) {
+              this.joystickDirection.x = deltaX / maxDistance;
+              this.joystickDirection.y = deltaY / maxDistance;
+              joystickKnob.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+            } else {
+              const angle = Math.atan2(deltaY, deltaX);
+              this.joystickDirection.x = Math.cos(angle);
+              this.joystickDirection.y = Math.sin(angle);
+              joystickKnob.style.transform = `translate(${
+                Math.cos(angle) * maxDistance
+              }px, ${Math.sin(angle) * maxDistance}px)`;
+            }
+          };
+
+          const handleJoystickEnd = (e) => {
+            e.preventDefault();
+            this.joystickActive = false;
+            this.joystickDirection = { x: 0, y: 0 };
+            joystickKnob.style.transform = 'translate(0px, 0px)';
+          };
+
+          joystick.addEventListener('mousedown', handleJoystickStart);
+          joystick.addEventListener('touchstart', handleJoystickStart);
+          document.addEventListener('mousemove', handleJoystickMove);
+          document.addEventListener('touchmove', handleJoystickMove);
+          document.addEventListener('mouseup', handleJoystickEnd);
+          document.addEventListener('touchend', handleJoystickEnd);
+
+          // Jump button
+          const jumpButton = document.getElementById('jumpButton');
+          jumpButton.addEventListener('click', () => this.player.jump());
+          jumpButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.player.jump();
+          });
+        }
+
+        setupPlayer() {
           this.player = {
             x: 100,
             y: 300,
@@ -284,589 +422,406 @@
             vx: 0,
             vy: 0,
             onGround: false,
-            facingRight: true,
-            jumpCount: 0,
-            maxJumps: 2,
+            canDoubleJump: true,
+            side: 'left', // 'left' or 'right'
             animFrame: 0,
-            animTimer: 0,
+            animTime: 0,
+
+            jump() {
+              if (this.onGround) {
+                this.vy = -12;
+                this.onGround = false;
+                this.canDoubleJump = true;
+                game.addParticles(
+                  this.x + this.width / 2,
+                  this.y + this.height,
+                  'jump',
+                );
+              } else if (this.canDoubleJump) {
+                this.vy = -10;
+                this.canDoubleJump = false;
+                game.addParticles(
+                  this.x + this.width / 2,
+                  this.y + this.height / 2,
+                  'doubleJump',
+                );
+              }
+            },
+
+            update(deltaTime) {
+              // Handle input
+              let moveX = 0;
+              if (
+                game.keys['KeyA'] ||
+                game.keys['ArrowLeft'] ||
+                game.joystickDirection.x < -0.3
+              ) {
+                moveX = -1;
+              }
+              if (
+                game.keys['KeyD'] ||
+                game.keys['ArrowRight'] ||
+                game.joystickDirection.x > 0.3
+              ) {
+                moveX = 1;
+              }
+
+              // Apply movement
+              this.vx = moveX * 5;
+
+              // Apply gravity
+              this.vy += 0.5;
+              if (this.vy > 15) this.vy = 15;
+
+              // Update position
+              this.x += this.vx;
+              this.y += this.vy;
+
+              // Determine which side player is on
+              const gameWidth = game.gameCanvas.width;
+              const arWidth = game.arCanvas.width;
+              const totalWidth = gameWidth + arWidth;
+
+              if (this.x < gameWidth) {
+                this.side = 'left';
+              } else {
+                this.side = 'right';
+                // Adjust position for AR canvas
+                if (this.x >= totalWidth) {
+                  this.x = totalWidth - this.width;
+                }
+              }
+
+              // Handle collisions
+              this.handleCollisions();
+
+              // Update animation
+              this.animTime += deltaTime;
+              if (this.animTime > 200) {
+                this.animFrame = (this.animFrame + 1) % 4;
+                this.animTime = 0;
+              }
+
+              // Check for side crossing bonus
+              if (
+                this.side === 'right' &&
+                this.onGround &&
+                game.arPlatforms.length > 0
+              ) {
+                // Check if standing on AR platform
+                for (let platform of game.arPlatforms) {
+                  if (
+                    this.x < platform.x + platform.width &&
+                    this.x + this.width > platform.x &&
+                    this.y + this.height >= platform.y - 5 &&
+                    this.y + this.height <= platform.y + 5
+                  ) {
+                    game.addScore(5);
+                    break;
+                  }
+                }
+              }
+            },
+
+            handleCollisions() {
+              const gameHeight = game.gameCanvas.height;
+              const arHeight = game.arCanvas.height;
+
+              // Ground collision
+              if (this.side === 'left') {
+                if (this.y + this.height >= gameHeight - 50) {
+                  this.y = gameHeight - 50 - this.height;
+                  this.vy = 0;
+                  this.onGround = true;
+                }
+
+                // Platform collisions for 2D side
+                for (let platform of game.platforms) {
+                  if (
+                    this.x < platform.x + platform.width &&
+                    this.x + this.width > platform.x &&
+                    this.y + this.height > platform.y &&
+                    this.y < platform.y + platform.height
+                  ) {
+                    if (this.vy > 0 && this.y < platform.y) {
+                      this.y = platform.y - this.height;
+                      this.vy = 0;
+                      this.onGround = true;
+                      game.addParticles(
+                        this.x + this.width / 2,
+                        this.y + this.height,
+                        'land',
+                      );
+                    }
+                  }
+                }
+              } else {
+                if (this.y + this.height >= arHeight - 50) {
+                  this.y = arHeight - 50 - this.height;
+                  this.vy = 0;
+                  this.onGround = true;
+                }
+
+                // AR platform collisions
+                for (let platform of game.arPlatforms) {
+                  if (
+                    this.x < platform.x + platform.width &&
+                    this.x + this.width > platform.x &&
+                    this.y + this.height > platform.y &&
+                    this.y < platform.y + platform.height
+                  ) {
+                    if (this.vy > 0 && this.y < platform.y) {
+                      this.y = platform.y - this.height;
+                      this.vy = 0;
+                      this.onGround = true;
+                      game.addParticles(
+                        this.x + this.width / 2,
+                        this.y + this.height,
+                        'land',
+                      );
+                      game.addScore(10);
+                    }
+                  }
+                }
+              }
+
+              // Boundary checks
+              if (this.x < 0) this.x = 0;
+              if (
+                this.side === 'left' &&
+                this.x + this.width > game.gameCanvas.width
+              ) {
+                this.x = game.gameCanvas.width - this.width;
+              }
+              if (this.side === 'right') {
+                const arStart = game.gameCanvas.width;
+                if (this.x < arStart) this.x = arStart;
+                if (this.x + this.width > arStart + game.arCanvas.width) {
+                  this.x = arStart + game.arCanvas.width - this.width;
+                }
+              }
+
+              // Death check
+              if (this.y > Math.max(gameHeight, arHeight) + 100) {
+                this.respawn();
+              }
+            },
+
+            respawn() {
+              this.x = 100;
+              this.y = 300;
+              this.vx = 0;
+              this.vy = 0;
+              this.side = 'left';
+              game.lives--;
+              game.updateUI();
+
+              if (game.lives <= 0) {
+                game.gameOver();
+              }
+            },
+
+            draw(ctx, offsetX = 0) {
+              ctx.save();
+
+              // Draw sketch-style character
+              ctx.strokeStyle = '#333';
+              ctx.lineWidth = 2;
+              ctx.fillStyle = '#f0f0f0';
+
+              const drawX = this.x - offsetX;
+
+              // Body
+              ctx.fillRect(drawX + 8, this.y + 10, 14, 20);
+              ctx.strokeRect(drawX + 8, this.y + 10, 14, 20);
+
+              // Head
+              ctx.beginPath();
+              ctx.arc(drawX + 15, this.y + 8, 8, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+
+              // Eyes
+              ctx.fillStyle = '#333';
+              ctx.fillRect(drawX + 12, this.y + 6, 2, 2);
+              ctx.fillRect(drawX + 16, this.y + 6, 2, 2);
+
+              // Legs (animated)
+              const legOffset = Math.sin(this.animFrame * 0.5) * 3;
+              ctx.strokeRect(drawX + 10, this.y + 30, 4, 10 + legOffset);
+              ctx.strokeRect(drawX + 16, this.y + 30, 4, 10 - legOffset);
+
+              // Arms
+              ctx.strokeRect(drawX + 4, this.y + 15, 4, 8);
+              ctx.strokeRect(drawX + 22, this.y + 15, 4, 8);
+
+              ctx.restore();
+            },
           };
-
-          // Physics constants
-          this.gravity = 0.5;
-          this.friction = 0.85;
-          this.jumpPower = -12;
-          this.moveSpeed = 5;
-
-          // AR processing
-          this.arProcessingEnabled = false;
-          this.lastFrameData = null;
-
-          this.init();
         }
 
-        async init() {
-          await this.setupCanvases();
-          await this.setupCamera();
-          this.setupEventListeners();
-          this.createPlatforms();
-          this.gameState = 'playing';
-          document.getElementById('loading').style.display = 'none';
-          this.gameLoop();
+        setupPlatforms() {
+          this.platforms = [
+            { x: 200, y: 350, width: 100, height: 20 },
+            { x: 350, y: 280, width: 80, height: 20 },
+            { x: 150, y: 200, width: 120, height: 20 },
+            { x: 320, y: 150, width: 90, height: 20 },
+          ];
+
+          this.arPlatforms = [];
         }
 
-        async setupCanvases() {
-          // Set canvas sizes
-          const setCanvasSize = (canvas) => {
-            const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
-          };
+        setupAR() {
+          this.video = document.createElement('video');
+          this.video.width = 320;
+          this.video.height = 240;
+          this.video.autoplay = true;
+          this.video.muted = true;
 
-          setCanvasSize(this.gameCanvas);
-          setCanvasSize(this.arCanvas);
+          this.cameraActive = false;
+          this.sketchCanvas = document.createElement('canvas');
+          this.sketchCtx = this.sketchCanvas.getContext('2d');
 
-          // Handle window resize
-          window.addEventListener('resize', () => {
-            setCanvasSize(this.gameCanvas);
-            setCanvasSize(this.arCanvas);
-          });
+          this.initCamera();
         }
 
-        async setupCamera() {
+        async initCamera() {
           try {
             const stream = await navigator.mediaDevices.getUserMedia({
-              video: {
-                width: { ideal: 640 },
-                height: { ideal: 480 },
-                facingMode: 'environment',
-              },
+              video: { width: 320, height: 240 },
             });
-
-            this.arVideo.srcObject = stream;
-            this.arProcessingEnabled = true;
-
-            this.arVideo.addEventListener('loadeddata', () => {
-              console.log('Camera initialized successfully');
-            });
+            this.video.srcObject = stream;
+            this.cameraActive = true;
+            document.getElementById('cameraStatus').textContent =
+              'Camera active';
           } catch (err) {
-            console.log('Camera access denied or unavailable:', err);
+            console.log('Camera not available:', err);
+            document.getElementById('cameraStatus').textContent =
+              'Camera unavailable - using fallback';
             this.setupFallbackAR();
           }
         }
 
         setupFallbackAR() {
-          // Create fallback AR platforms when camera is not available
+          // Create fake AR platforms when camera is not available
           this.arPlatforms = [
-            { x: 50, y: 300, width: 120, height: 20 },
-            { x: 200, y: 200, width: 100, height: 20 },
-            { x: 350, y: 150, width: 80, height: 20 },
-            { x: 150, y: 400, width: 150, height: 20 },
+            { x: 50, y: 200, width: 100, height: 15 },
+            { x: 200, y: 150, width: 80, height: 15 },
+            { x: 120, y: 300, width: 120, height: 15 },
           ];
-        }
-
-        setupEventListeners() {
-          // Keyboard controls
-          window.addEventListener('keydown', (e) => {
-            this.keys[e.key.toLowerCase()] = true;
-            if (
-              e.key === ' ' ||
-              e.key === 'ArrowUp' ||
-              e.key.toLowerCase() === 'w'
-            ) {
-              e.preventDefault();
-              this.jump();
-            }
-          });
-
-          window.addEventListener('keyup', (e) => {
-            this.keys[e.key.toLowerCase()] = false;
-          });
-
-          // Touch controls
-          const joystick = document.getElementById('joystick');
-          const jumpBtn = document.getElementById('jumpBtn');
-
-          // Joystick
-          joystick.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.touches.joystick = true;
-          });
-
-          joystick.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            this.touches.joystick = false;
-          });
-
-          // Jump button
-          jumpBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.jump();
-          });
-
-          jumpBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.jump();
-          });
-
-          // Mouse controls for desktop
-          joystick.addEventListener('mousedown', (e) => {
-            this.touches.joystick = true;
-          });
-
-          joystick.addEventListener('mouseup', (e) => {
-            this.touches.joystick = false;
-          });
-        }
-
-        createPlatforms() {
-          // Create hand-drawn style platforms for left side
-          this.platforms = [
-            {
-              x: 0,
-              y: this.gameCanvas.height - 40,
-              width: this.gameCanvas.width,
-              height: 40,
-            }, // Ground
-            { x: 150, y: this.gameCanvas.height - 120, width: 100, height: 20 },
-            { x: 300, y: this.gameCanvas.height - 200, width: 120, height: 20 },
-            { x: 50, y: this.gameCanvas.height - 280, width: 80, height: 20 },
-            { x: 350, y: this.gameCanvas.height - 360, width: 100, height: 20 },
-          ];
-        }
-
-        jump() {
-          if (this.player.jumpCount < this.player.maxJumps) {
-            this.player.vy = this.jumpPower;
-            this.player.jumpCount++;
-            this.player.onGround = false;
-            this.createJumpParticles();
-          }
-        }
-
-        updatePlayer() {
-          // Handle input
-          let moveDir = 0;
-
-          if (
-            this.keys['a'] ||
-            this.keys['arrowleft'] ||
-            this.touches.joystick
-          ) {
-            moveDir -= 1;
-            this.player.facingRight = false;
-          }
-          if (
-            this.keys['d'] ||
-            this.keys['arrowright'] ||
-            this.touches.joystick
-          ) {
-            moveDir += 1;
-            this.player.facingRight = true;
-          }
-
-          // Apply movement
-          this.player.vx += moveDir * 0.5;
-          this.player.vx = Math.max(
-            -this.moveSpeed,
-            Math.min(this.moveSpeed, this.player.vx),
-          );
-
-          // Apply friction
-          if (this.player.onGround) {
-            this.player.vx *= this.friction;
-          }
-
-          // Apply gravity
-          this.player.vy += this.gravity;
-
-          // Update position
-          this.player.x += this.player.vx;
-          this.player.y += this.player.vy;
-
-          // Check side transition
-          const canvasWidth = this.gameCanvas.width;
-          const midPoint = canvasWidth / 2;
-
-          if (this.currentSide === 'left' && this.player.x > midPoint) {
-            this.currentSide = 'right';
-            this.player.x = 50; // Reset position on AR side
-            this.addScore(10);
-            this.updateHUD();
-          } else if (this.currentSide === 'right' && this.player.x < 50) {
-            this.currentSide = 'left';
-            this.player.x = midPoint - 50; // Reset position on 2D side
-            this.addScore(10);
-            this.updateHUD();
-          }
-
-          // Keep player in bounds
-          if (this.player.x < 0) this.player.x = 0;
-          if (this.player.x > canvasWidth - this.player.width) {
-            this.player.x = canvasWidth - this.player.width;
-          }
-
-          // Reset if player falls off screen
-          if (this.player.y > this.gameCanvas.height + 100) {
-            this.resetPlayer();
-          }
-
-          // Handle collisions
-          this.handleCollisions();
-
-          // Update animation
-          this.updatePlayerAnimation();
-        }
-
-        handleCollisions() {
-          const platforms =
-            this.currentSide === 'left' ? this.platforms : this.arPlatforms;
-
-          this.player.onGround = false;
-
-          for (let platform of platforms) {
-            if (this.checkCollision(this.player, platform)) {
-              // Landing on platform
-              if (this.player.vy > 0 && this.player.y < platform.y) {
-                this.player.y = platform.y - this.player.height;
-                this.player.vy = 0;
-                this.player.onGround = true;
-                this.player.jumpCount = 0;
-
-                if (this.currentSide === 'right') {
-                  this.addScore(5); // Bonus for AR platforms
-                }
-
-                this.createLandParticles();
-              }
-            }
-          }
-        }
-
-        checkCollision(rect1, rect2) {
-          return (
-            rect1.x < rect2.x + rect2.width &&
-            rect1.x + rect1.width > rect2.x &&
-            rect1.y < rect2.y + rect2.height &&
-            rect1.y + rect1.height > rect2.y
-          );
-        }
-
-        updatePlayerAnimation() {
-          this.player.animTimer++;
-          if (this.player.animTimer > 8) {
-            this.player.animFrame = (this.player.animFrame + 1) % 4;
-            this.player.animTimer = 0;
-          }
         }
 
         processARFrame() {
-          if (!this.arProcessingEnabled || !this.arVideo.readyState) return;
+          if (!this.cameraActive || !this.video.videoWidth) {
+            return;
+          }
 
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          canvas.width = this.arCanvas.width;
-          canvas.height = this.arCanvas.height;
+          const canvas = this.sketchCanvas;
+          const ctx = this.sketchCtx;
+
+          canvas.width = this.video.videoWidth;
+          canvas.height = this.video.videoHeight;
 
           // Draw video frame
-          ctx.drawImage(this.arVideo, 0, 0, canvas.width, canvas.height);
+          ctx.drawImage(this.video, 0, 0);
 
-          // Get image data
+          // Get image data for processing
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-          // Apply pencil sketch filter
-          this.applySketchFilter(imageData);
-
-          // Detect platforms
-          this.detectARPlatforms(imageData);
-
-          // Draw processed image to AR canvas
-          this.arCtx.putImageData(imageData, 0, 0);
-        }
-
-        applySketchFilter(imageData) {
           const data = imageData.data;
-          const width = imageData.width;
-          const height = imageData.height;
 
           // Convert to grayscale and apply edge detection
           for (let i = 0; i < data.length; i += 4) {
             const gray =
               data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-
-            // Apply pencil sketch effect
-            const sketch = this.applySketchEffect(gray, i, data, width);
-
-            data[i] = sketch; // R
-            data[i + 1] = sketch; // G
-            data[i + 2] = sketch; // B
-            // Alpha stays the same
+            data[i] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
           }
+
+          ctx.putImageData(imageData, 0, 0);
+
+          // Simple platform detection (horizontal edges)
+          this.detectPlatforms(imageData);
         }
 
-        applySketchEffect(gray, index, data, width) {
-          // Simple edge detection and sketch simulation
-          const threshold = 100;
-          const edge = Math.abs(gray - threshold);
-
-          // Create pencil-like strokes
-          const noise = Math.random() * 20 - 10;
-          const sketch = Math.max(0, Math.min(255, 255 - edge + noise));
-
-          return sketch;
-        }
-
-        detectARPlatforms(imageData) {
-          // Simplified platform detection based on horizontal edges
-          const platforms = [];
+        detectPlatforms(imageData) {
           const data = imageData.data;
           const width = imageData.width;
           const height = imageData.height;
+          const platforms = [];
 
-          // Scan for horizontal edges that could be platforms
-          for (let y = height * 0.3; y < height * 0.9; y += 20) {
-            for (let x = 0; x < width - 100; x += 20) {
-              if (this.isHorizontalEdge(data, x, y, width)) {
+          // Simple horizontal edge detection
+          for (let y = 50; y < height - 50; y += 20) {
+            for (let x = 10; x < width - 50; x += 30) {
+              const idx = (y * width + x) * 4;
+              const current = data[idx];
+              const below = data[((y + 10) * width + x) * 4];
+
+              if (Math.abs(current - below) > 50) {
+                // Scale to AR canvas size
+                const scaledX = (x / width) * this.arCanvas.width;
+                const scaledY = (y / height) * this.arCanvas.height;
+
                 platforms.push({
-                  x: x,
-                  y: y,
-                  width: Math.min(100 + Math.random() * 50, width - x),
-                  height: 15,
+                  x: scaledX,
+                  y: scaledY,
+                  width: 60,
+                  height: 10,
                 });
               }
             }
           }
 
-          // Filter and merge nearby platforms
-          this.arPlatforms = this.filterPlatforms(platforms);
+          // Merge nearby platforms and limit count
+          this.arPlatforms = this.mergePlatforms(platforms).slice(0, 5);
         }
 
-        isHorizontalEdge(data, x, y, width) {
-          const index = (y * width + x) * 4;
-          if (index >= data.length - width * 4) return false;
-
-          const current = data[index];
-          const below = data[index + width * 4];
-
-          return Math.abs(current - below) > 50;
-        }
-
-        filterPlatforms(platforms) {
-          // Remove overlapping platforms and limit count
-          const filtered = [];
-          const maxPlatforms = 6;
+        mergePlatforms(platforms) {
+          const merged = [];
+          const threshold = 50;
 
           for (let platform of platforms) {
-            let shouldAdd = true;
-            for (let existing of filtered) {
+            let found = false;
+            for (let existing of merged) {
               if (
-                Math.abs(platform.x - existing.x) < 50 &&
-                Math.abs(platform.y - existing.y) < 30
+                Math.abs(platform.x - existing.x) < threshold &&
+                Math.abs(platform.y - existing.y) < threshold
               ) {
-                shouldAdd = false;
+                found = true;
                 break;
               }
             }
-
-            if (shouldAdd && filtered.length < maxPlatforms) {
-              filtered.push(platform);
+            if (!found) {
+              merged.push(platform);
             }
           }
 
-          return filtered;
+          return merged;
         }
 
-        render() {
-          // Clear canvases
-          this.gameCtx.fillStyle = 'rgba(248, 248, 248, 0.1)';
-          this.gameCtx.fillRect(
-            0,
-            0,
-            this.gameCanvas.width,
-            this.gameCanvas.height,
-          );
-
-          this.arCtx.fillStyle = 'rgba(248, 248, 248, 0.1)';
-          this.arCtx.fillRect(0, 0, this.arCanvas.width, this.arCanvas.height);
-
-          // Render based on current side
-          if (this.currentSide === 'left') {
-            this.renderGame();
-          } else {
-            this.renderAR();
-          }
-
-          // Render particles
-          this.renderParticles();
-        }
-
-        renderGame() {
-          const ctx = this.gameCtx;
-
-          // Draw platforms with sketch style
-          ctx.strokeStyle = '#333';
-          ctx.fillStyle = '#ddd';
-          ctx.lineWidth = 2;
-
-          for (let platform of this.platforms) {
-            this.drawSketchRect(
-              ctx,
-              platform.x,
-              platform.y,
-              platform.width,
-              platform.height,
-            );
-          }
-
-          // Draw player
-          this.drawPlayer(ctx);
-        }
-
-        renderAR() {
-          // Process AR frame
-          this.processARFrame();
-
-          const ctx = this.arCtx;
-
-          // Draw AR platforms
-          ctx.strokeStyle = '#000';
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-          ctx.lineWidth = 3;
-
-          for (let platform of this.arPlatforms) {
-            this.drawSketchRect(
-              ctx,
-              platform.x,
-              platform.y,
-              platform.width,
-              platform.height,
-            );
-          }
-
-          // Draw player
-          this.drawPlayer(ctx);
-        }
-
-        drawPlayer(ctx) {
-          const p = this.player;
-
-          ctx.save();
-          ctx.translate(p.x + p.width / 2, p.y + p.height / 2);
-          if (!p.facingRight) ctx.scale(-1, 1);
-
-          // Draw sketch-style player
-          ctx.strokeStyle = '#000';
-          ctx.fillStyle = '#fff';
-          ctx.lineWidth = 2;
-
-          // Body
-          this.drawSketchRect(
-            ctx,
-            -p.width / 2,
-            -p.height / 2,
-            p.width,
-            p.height * 0.7,
-          );
-
-          // Head
-          ctx.beginPath();
-          ctx.arc(0, -p.height / 2 + 5, 8, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-
-          // Simple animation
-          const bounce = Math.sin(this.player.animFrame * 0.5) * 2;
-          ctx.translate(0, bounce);
-
-          // Arms
-          ctx.beginPath();
-          ctx.moveTo(-p.width / 3, -5);
-          ctx.lineTo(-p.width / 2 - 5, 0);
-          ctx.moveTo(p.width / 3, -5);
-          ctx.lineTo(p.width / 2 + 5, 0);
-          ctx.stroke();
-
-          // Legs
-          ctx.beginPath();
-          ctx.moveTo(-5, p.height / 3);
-          ctx.lineTo(-8, p.height / 2 + 5);
-          ctx.moveTo(5, p.height / 3);
-          ctx.lineTo(8, p.height / 2 + 5);
-          ctx.stroke();
-
-          ctx.restore();
-        }
-
-        drawSketchRect(ctx, x, y, width, height) {
-          ctx.save();
-
-          // Add slight randomness for hand-drawn effect
-          const jitter = 1;
-
-          ctx.beginPath();
-          ctx.moveTo(x + Math.random() * jitter, y + Math.random() * jitter);
-          ctx.lineTo(
-            x + width + Math.random() * jitter,
-            y + Math.random() * jitter,
-          );
-          ctx.lineTo(
-            x + width + Math.random() * jitter,
-            y + height + Math.random() * jitter,
-          );
-          ctx.lineTo(
-            x + Math.random() * jitter,
-            y + height + Math.random() * jitter,
-          );
-          ctx.closePath();
-
-          ctx.fill();
-          ctx.stroke();
-
-          // Add crosshatch shading
-          if (Math.random() > 0.5) {
-            ctx.beginPath();
-            for (let i = 0; i < width; i += 8) {
-              ctx.moveTo(x + i, y);
-              ctx.lineTo(x + i + 4, y + height);
-            }
-            ctx.stroke();
-          }
-
-          ctx.restore();
-        }
-
-        createJumpParticles() {
-          for (let i = 0; i < 5; i++) {
+        addParticles(x, y, type) {
+          const count = type === 'jump' ? 5 : type === 'land' ? 8 : 3;
+          for (let i = 0; i < count; i++) {
             this.particles.push({
-              x: this.player.x + this.player.width / 2,
-              y: this.player.y + this.player.height,
+              x: x + (Math.random() - 0.5) * 20,
+              y: y + (Math.random() - 0.5) * 10,
               vx: (Math.random() - 0.5) * 4,
-              vy: Math.random() * -2 - 1,
-              life: 20,
-              type: 'dust',
+              vy: Math.random() * -3 - 1,
+              life: 1,
+              decay: 0.02,
+              size: Math.random() * 3 + 1,
+              type: type,
             });
           }
         }
 
-        createLandParticles() {
-          for (let i = 0; i < 3; i++) {
-            this.particles.push({
-              x: this.player.x + this.player.width / 2,
-              y: this.player.y + this.player.height,
-              vx: (Math.random() - 0.5) * 3,
-              vy: Math.random() * -1,
-              life: 15,
-              type: 'dust',
-            });
-          }
-        }
-
-        updateParticles() {
+        updateParticles(deltaTime) {
           for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
             p.vy += 0.1; // gravity
-            p.life--;
+            p.life -= p.decay;
 
             if (p.life <= 0) {
               this.particles.splice(i, 1);
@@ -874,72 +829,248 @@
           }
         }
 
-        renderParticles() {
-          const ctx = this.currentSide === 'left' ? this.gameCtx : this.arCtx;
-
-          ctx.fillStyle = '#666';
+        drawParticles(ctx, offsetX = 0) {
+          ctx.save();
           for (let p of this.particles) {
-            ctx.save();
-            ctx.globalAlpha = p.life / 20;
-            ctx.fillRect(p.x, p.y, 3, 3);
-            ctx.restore();
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle =
+              p.type === 'jump'
+                ? '#4CAF50'
+                : p.type === 'land'
+                ? '#8B4513'
+                : '#FFD700';
+            ctx.fillRect(p.x - offsetX, p.y, p.size, p.size);
           }
-        }
-
-        resetPlayer() {
-          this.lives--;
-          this.updateHUD();
-
-          if (this.lives <= 0) {
-            this.gameState = 'gameOver';
-            alert('Game Over! Final Score: ' + this.score);
-            location.reload();
-            return;
-          }
-
-          this.player.x = 100;
-          this.player.y = 300;
-          this.player.vx = 0;
-          this.player.vy = 0;
-          this.currentSide = 'left';
-          this.updateHUD();
+          ctx.restore();
         }
 
         addScore(points) {
           this.score += points;
-          this.updateHUD();
+          this.updateUI();
         }
 
-        updateHUD() {
+        updateUI() {
           document.getElementById('score').textContent = this.score;
-          document.getElementById('lives').textContent = '♥'.repeat(this.lives);
-          document.getElementById('current-side').textContent =
-            this.currentSide === 'left' ? '2D World' : 'AR World';
+          document.getElementById('lives').textContent = this.lives;
         }
 
-        gameLoop() {
-          if (this.gameState === 'playing') {
-            this.updatePlayer();
-            this.updateParticles();
-            this.render();
+        startGame() {
+          document.getElementById('instructions').style.display = 'none';
+          this.gameStarted = true;
+          this.gameLoop();
+        }
+
+        gameOver() {
+          this.gameStarted = false;
+          alert(`Game Over! Final Score: ${this.score}`);
+          location.reload();
+        }
+
+        gameLoop(currentTime = 0) {
+          if (!this.gameStarted) return;
+
+          const deltaTime = currentTime - this.lastTime;
+          this.lastTime = currentTime;
+
+          // Update game state
+          this.player.update(deltaTime);
+          this.updateParticles(deltaTime);
+          this.processARFrame();
+
+          // Clear canvases
+          this.gameCtx.clearRect(
+            0,
+            0,
+            this.gameCanvas.width,
+            this.gameCanvas.height,
+          );
+          this.arCtx.clearRect(0, 0, this.arCanvas.width, this.arCanvas.height);
+
+          // Draw 2D side
+          this.draw2DWorld();
+
+          // Draw AR side
+          this.drawARWorld();
+
+          requestAnimationFrame((time) => this.gameLoop(time));
+        }
+
+        draw2DWorld() {
+          const ctx = this.gameCtx;
+          const width = this.gameCanvas.width;
+          const height = this.gameCanvas.height;
+
+          // Background
+          ctx.fillStyle = '#fafafa';
+          ctx.fillRect(0, 0, width, height);
+
+          // Draw sketch-style platforms
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 3;
+          ctx.fillStyle = '#e0e0e0';
+
+          for (let platform of this.platforms) {
+            // Platform with sketch effect
+            ctx.fillRect(
+              platform.x,
+              platform.y,
+              platform.width,
+              platform.height,
+            );
+            ctx.strokeRect(
+              platform.x,
+              platform.y,
+              platform.width,
+              platform.height,
+            );
+
+            // Add sketch lines
+            for (let i = 0; i < 3; i++) {
+              ctx.beginPath();
+              ctx.moveTo(platform.x + i * 20, platform.y + 2);
+              ctx.lineTo(
+                platform.x + i * 20 + 15,
+                platform.y + platform.height - 2,
+              );
+              ctx.stroke();
+            }
           }
 
-          requestAnimationFrame(() => this.gameLoop());
+          // Ground
+          ctx.fillRect(0, height - 50, width, 50);
+          ctx.strokeRect(0, height - 50, width, 50);
+
+          // Draw player if on left side
+          if (this.player.side === 'left') {
+            this.player.draw(ctx);
+          }
+
+          // Draw particles
+          this.drawParticles(ctx);
+
+          // Transition indicator
+          ctx.strokeStyle = '#ff6b6b';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([10, 5]);
+          ctx.beginPath();
+          ctx.moveTo(width - 5, 0);
+          ctx.lineTo(width - 5, height);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        drawARWorld() {
+          const ctx = this.arCtx;
+          const width = this.arCanvas.width;
+          const height = this.arCanvas.height;
+
+          // Background
+          ctx.fillStyle = '#f5f5f5';
+          ctx.fillRect(0, 0, width, height);
+
+          // Draw processed camera feed if available
+          if (this.cameraActive && this.sketchCanvas.width > 0) {
+            ctx.globalAlpha = 0.3;
+            ctx.drawImage(this.sketchCanvas, 0, 0, width, height);
+            ctx.globalAlpha = 1;
+          }
+
+          // Draw AR platforms
+          ctx.strokeStyle = '#333';
+          ctx.lineWidth = 2;
+          ctx.fillStyle = '#d0d0d0';
+
+          for (let platform of this.arPlatforms) {
+            ctx.fillRect(
+              platform.x,
+              platform.y,
+              platform.width,
+              platform.height,
+            );
+            ctx.strokeRect(
+              platform.x,
+              platform.y,
+              platform.width,
+              platform.height,
+            );
+
+            // Sketch effect
+            ctx.beginPath();
+            for (let i = 0; i < platform.width; i += 10) {
+              ctx.moveTo(platform.x + i, platform.y);
+              ctx.lineTo(platform.x + i + 5, platform.y + platform.height);
+            }
+            ctx.stroke();
+          }
+
+          // Ground
+          ctx.fillRect(0, height - 50, width, 50);
+          ctx.strokeRect(0, height - 50, width, 50);
+
+          // Draw player if on right side
+          if (this.player.side === 'right') {
+            this.player.draw(ctx, this.gameCanvas.width);
+          }
+
+          // Draw particles
+          this.drawParticles(ctx, this.gameCanvas.width);
+
+          // AR indicator
+          ctx.fillStyle = 'rgba(100, 255, 100, 0.2)';
+          ctx.fillRect(0, 0, width, height);
+
+          // Transition indicator
+          ctx.strokeStyle = '#ff6b6b';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([10, 5]);
+          ctx.beginPath();
+          ctx.moveTo(5, 0);
+          ctx.lineTo(5, height);
+          ctx.stroke();
+          ctx.setLineDash([]);
         }
       }
 
-      // Initialize game when page loads
-      document.addEventListener('DOMContentLoaded', () => {
-        new SketchJumpAR();
+      // Initialize game
+      let game;
+      window.addEventListener('load', () => {
+        game = new GameEngine();
       });
-
-      // Prevent context menu on mobile
-      document.addEventListener('contextmenu', (e) => e.preventDefault());
-
-      // Prevent scrolling on mobile
-      document.addEventListener('touchmove', (e) => e.preventDefault(), {
-        passive: false,
-      });
+    </script>
+    <script>
+      (function () {
+        function c() {
+          var b = a.contentDocument || a.contentWindow.document;
+          if (b) {
+            var d = b.createElement('script');
+            d.innerHTML =
+              "window.__CF$cv$params={r:'98434907d63b46c2',t:'MTc1ODcyNzQzMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";
+            b.getElementsByTagName('head')[0].appendChild(d);
+          }
+        }
+        if (document.body) {
+          var a = document.createElement('iframe');
+          a.height = 1;
+          a.width = 1;
+          a.style.position = 'absolute';
+          a.style.top = 0;
+          a.style.left = 0;
+          a.style.border = 'none';
+          a.style.visibility = 'hidden';
+          document.body.appendChild(a);
+          if ('loading' !== document.readyState) c();
+          else if (window.addEventListener)
+            document.addEventListener('DOMContentLoaded', c);
+          else {
+            var e = document.onreadystatechange || function () {};
+            document.onreadystatechange = function (b) {
+              e(b);
+              'loading' !== document.readyState &&
+                ((document.onreadystatechange = e), c());
+            };
+          }
+        }
+      })();
     </script>
   </body>
 </html>
